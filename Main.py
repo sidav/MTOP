@@ -1,6 +1,6 @@
 from rk4 import SolverRK4
 from matplotlib import pyplot as plt
-from math import sin, cos, exp
+from math import sin, cos, exp, tanh
 
 ## Константушечки
 l_max = 180.0
@@ -45,36 +45,38 @@ def v(l, x):
 def R(i, _x7):
     return U[i] * exp(23.0 - (E[i] / _x7))
 
-def I(): ## <----- сделать, это она только притворяется готовой.
+def I(x_l_vector): ## <----- сделать, это она только притворяется готовой.
     num_sum = 0.0
     for j in range(2, 5):
-        num_sum += q[j]*m[j-1] * x_l[j-1]   # Хьюстон, у нас проблема: x[j] должно зависеть от L,
+        num_sum += q[j]*m[j-1] * x_l_vector[j-1]   # Хьюстон, у нас проблема: x[j] должно зависеть от L,
                                                 # я так понимаю, это результат интегрирования -> это функция
     denom_sum = 0.0
     for j in range(6):
-        denom_sum += m[j] * x_l[j]           # Та же беда
+        denom_sum += m[j] * x_l_vector[j]           # Та же беда
 
     return num_sum / denom_sum
 
 ### x7 ненаглядная
 
 
-def x7(l, _alpha = 1.3):
+def x7(l):
     # if l == 0:
     #     return 373.0
     # elif l == 180.0:
     #     return 1500.0
     # else:
 
-    return 900.0
+    # return alpha
     #res = l ** _alpha + 373
-    # res = 373.0 + _alpha*(sin(0.01*l))
+    # res = 373.0 + alpha*(sin(0.01*l))
+
+    res = 1127 * tanh(alpha * l) + 373
 
     if 373.0 <= res <= 1500.0:
         return res
     else:
         print("OMG ERROR x7 IS FUCKING {0}".format(res))
-        return 373
+        return 1500
 
 ################################################
 ### Система
@@ -103,15 +105,53 @@ dx6dl = lambda l, x1, x2, x3, x4, x5, x6: \
 ########## Собственно, решение: ##########
 ##########################################
 
-solver = SolverRK4(dx1dl, dx2dl, dx3dl, dx4dl, dx5dl, dx6dl)
-lr, xr = solver.solve([1, 0, 0, 0, 0, 0] , 0.01, l_max)
+def solve_eq():
+    solver = SolverRK4(dx1dl, dx2dl, dx3dl, dx4dl, dx5dl, dx6dl)
+    lr, xr = solver.solve([1, 0, 0, 0, 0, 0], 0.5, l_max)
 
-last_x_index = len(xr[0]) - 1
-x_l = []
-for i in range(6):
-    x_l.append(xr[i][last_x_index])
-print(x_l)
-print(I())
+    last_x_index = len(xr[0]) - 1
+    x_l = []
+    for i in range(6):
+        x_l.append(xr[i][last_x_index])
+    # print(x_l)
+    return x_l
+
+def find_imax_by_bisection(a_min, a_max):
+    global alpha
+    eps = 0.00001
+    diff = 9999.0
+    alpha = a_min
+    possibru_res = 0.0
+    while(diff > eps):
+        mean = (a_max + a_min) / 2.0
+        mean_left = (mean + a_min) / 2.0
+        mean_right  = (a_max + mean) / 2.0
+        # слева
+        alpha = mean_left
+        left_res = I(solve_eq())
+        # справа
+        alpha = mean_right
+        right_res = I(solve_eq())
+        diff = abs(left_res - right_res)
+
+        # print("left m{0} alf, right {}".format())
+
+        if left_res > right_res:
+            a_max = mean
+            possibru_res = left_res
+        else:
+            a_min = mean
+            possibru_res = right_res
+    print("Max I() is {0}, at alpha = {1} ".format(possibru_res, alpha))
+
+
+########################################
+##### выполнение начинается отсюда #####
+alpha = 373.0
+find_imax_by_bisection(373.0, 1500.0)
+
+# alpha = 959.0
+# print(I(solve_eq()))
 
 # plt.xlim(0, 180)
 # plt.ylim(373, 1500)
